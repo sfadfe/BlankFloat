@@ -26,6 +26,7 @@ uinput_typer.py
 import sys
 import time
 import random
+import threading
 
 try:
     from evdev import UInput, ecodes as e
@@ -319,12 +320,46 @@ def open_uinput() -> "UInput":
     return UInput(build_capabilities(), name="virtual-uinput-keyboard")
 
 
+class UInputKeyboard:
+    """Process-lifetime virtual keyboard; settle once after first open."""
+
+    def __init__(self, settle_secs: float = 1.0) -> None:
+        self._settle_secs = settle_secs
+        self._ui: UInput | None = None
+        self._lock = threading.Lock()
+
+    @property
+    def ui(self) -> "UInput | None":
+        return self._ui
+
+    def ensure(self, on_status=None) -> "UInput":
+        with self._lock:
+            if self._ui is not None:
+                return self._ui
+            self._ui = open_uinput()
+            if self._settle_secs > 0:
+                if on_status:
+                    on_status("디바이스 준비 중...")
+                time.sleep(self._settle_secs)
+            return self._ui
+
+    def close(self) -> None:
+        with self._lock:
+            if self._ui is None:
+                return
+            try:
+                self._ui.close()
+            finally:
+                self._ui = None
+
+
 def type_payload(
     text: str,
     *,
     countdown_secs: int = 3,
     convert_hangul: bool = True,
-    settle_secs: float = 1.0,
+    settle_secs: float | None = None,
+    ui: "UInput | None" = None,
     min_delay: float = 0.03,
     max_delay: float = 0.08,
     typo_prob: float = 0.045,
@@ -337,9 +372,17 @@ def type_payload(
     uinput 으로 text 를 타이핑한다.
     convert_hangul=True 이면 완성형 한글을 두벌식 QWERTY 시퀀스로 바꾼다
     (IME가 한글 모드일 때 한글로 조합됨).
+
+    ``ui`` 를 넘기면 그 디바이스를 재사용하고 닫지 않는다 (settle 기본 0).
+    없으면 매번 열고 닫으며 settle 기본 1.0초.
     """
     payload = hangul_to_qwerty(text) if convert_hangul else text
-    ui = open_uinput()
+    owns_ui = ui is None
+    if settle_secs is None:
+        settle_secs = 1.0 if owns_ui else 0.0
+    if owns_ui:
+        ui = open_uinput()
+    assert ui is not None
     try:
         # 커널/udev 가 새 디바이스를 인식해 입력 스택에 붙일 시간
         if settle_secs > 0:
@@ -364,7 +407,8 @@ def type_payload(
         if on_status:
             on_status("완료")
     finally:
-        ui.close()
+        if owns_ui:
+            ui.close()
 
 
 def main():

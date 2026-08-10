@@ -30,7 +30,42 @@ class TyperApp:
             self.root.attributes("-fullscreen", False)
 
         self._busy = False
+        self._keyboard = None
+        self._kbd_lock = threading.Lock()
         self._build()
+        if self._owns_root:
+            self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        # Warm uinput in the background so the first Confirm skips most settle.
+        self.root.after(150, self._warm_uinput)
+
+    def _warm_uinput(self) -> None:
+        def work() -> None:
+            try:
+                self._ensure_keyboard()
+            except Exception:  # noqa: BLE001 — probe only; Confirm shows errors
+                pass
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _ensure_keyboard(self):
+        with self._kbd_lock:
+            if self._keyboard is None:
+                from .uinput_typer import UInputKeyboard
+
+                self._keyboard = UInputKeyboard(settle_secs=1.0)
+            kbd = self._keyboard
+        return kbd.ensure()
+
+    def close(self) -> None:
+        with self._kbd_lock:
+            kbd = self._keyboard
+            self._keyboard = None
+        if kbd is not None:
+            kbd.close()
+
+    def _on_close(self) -> None:
+        self.close()
+        self.root.destroy()
 
     def _build(self) -> None:
         # 흰 테두리 = 바깥 여백(root bg=white) + 안쪽 검정 패널
@@ -97,7 +132,8 @@ class TyperApp:
             try:
                 from .uinput_typer import type_payload
 
-                type_payload(text, countdown_secs=COUNTDOWN_SECS)
+                ui = self._ensure_keyboard()
+                type_payload(text, countdown_secs=COUNTDOWN_SECS, ui=ui)
             except Exception as exc:  # noqa: BLE001 — UI 에 표시
                 err = exc
             self.root.after(0, lambda: self._done(err))

@@ -2,7 +2,9 @@
 
 On GNOME Wayland, interactive portal / flameshot often fail after permission
 prompts (``InteractiveScreenshot didn't return a file``). The reliable path is
-a non-interactive full portal shot plus a Tk crop UI (``portal_region``).
+a non-interactive full portal shot plus a Tk crop UI (``portal-region``).
+Other backends stay available on non-GNOME sessions, or via
+``BLANKFLOAT_CAPTURE=name,name``.
 """
 
 from __future__ import annotations
@@ -16,6 +18,17 @@ import time
 from pathlib import Path
 
 PORTAL_TIMEOUT = 200
+
+
+def _is_wayland() -> bool:
+    if os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland":
+        return True
+    return bool(os.environ.get("WAYLAND_DISPLAY"))
+
+
+def _is_gnome() -> bool:
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+    return "GNOME" in desktop
 
 
 class CaptureError(RuntimeError):
@@ -159,12 +172,35 @@ BACKENDS = (
 )
 
 
+def active_backends() -> tuple[tuple[str, object], ...]:
+    """Backends for this session.
+
+    GNOME Wayland: ``portal-region`` only (flameshot / interactive portal /
+    grim / spectacle are unreliable or wrong compositor). Override with
+    ``BLANKFLOAT_CAPTURE=portal-region,flameshot,...``.
+    """
+    override = os.environ.get("BLANKFLOAT_CAPTURE", "").strip()
+    if override:
+        wanted = [name.strip() for name in override.split(",") if name.strip()]
+        by_name = {name: fn for name, fn in BACKENDS}
+        return tuple((name, by_name[name]) for name in wanted if name in by_name)
+
+    if _is_gnome() and _is_wayland():
+        return tuple(item for item in BACKENDS if item[0] == "portal-region")
+
+    if _is_gnome():
+        skip = {"grim+slurp", "spectacle"}
+        return tuple(item for item in BACKENDS if item[0] not in skip)
+
+    return BACKENDS
+
+
 def capture_region() -> Path:
     """Let the user pick a region and return the saved PNG path."""
     target = _new_target()
     errors: list[str] = []
 
-    for name, backend in BACKENDS:
+    for name, backend in active_backends():
         try:
             if backend(target):
                 return target

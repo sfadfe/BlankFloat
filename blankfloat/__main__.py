@@ -76,10 +76,14 @@ def cmd_multi(args) -> int:
     # No daemon yet: start app and enter multi-shot on the first paint.
     cfg = _config(args)
     typer = TyperApp()
+    typer.root._blankfloat_typer_close = typer.close  # noqa: SLF001
     app = FloatingApp(cfg, master=typer.root)
     typer.root.protocol("WM_DELETE_WINDOW", app.quit)
     app.root.after(250, app.toggle_multi)
-    typer.run()
+    try:
+        typer.run()
+    finally:
+        typer.close()
     return 0
 
 

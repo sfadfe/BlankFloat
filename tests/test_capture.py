@@ -1,3 +1,4 @@
+import os
 import subprocess
 import tempfile
 import unittest
@@ -97,7 +98,9 @@ class BackendChainTest(unittest.TestCase):
             raise capture.CaptureCancelled("취소")
 
         never = mock.Mock(side_effect=AssertionError("should not run after cancel"))
-        with mock.patch.object(capture, "BACKENDS", (("portal", cancel), ("next", never))):
+        with mock.patch.object(
+            capture, "active_backends", return_value=(("portal", cancel), ("next", never))
+        ):
             with self.assertRaises(capture.CaptureCancelled):
                 capture.capture_region()
         never.assert_not_called()
@@ -110,7 +113,9 @@ class BackendChainTest(unittest.TestCase):
             target.write_bytes(b"png")
             return True
 
-        with mock.patch.object(capture, "BACKENDS", (("portal", broken), ("grim", working))):
+        with mock.patch.object(
+            capture, "active_backends", return_value=(("portal", broken), ("grim", working))
+        ):
             path = capture.capture_region()
         self.assertTrue(path.exists())
         path.unlink()
@@ -122,10 +127,31 @@ class BackendChainTest(unittest.TestCase):
         def broken(_target):
             raise capture.CaptureError("boom")
 
-        with mock.patch.object(capture, "BACKENDS", (("a", missing), ("b", broken))):
+        with mock.patch.object(
+            capture, "active_backends", return_value=(("a", missing), ("b", broken))
+        ):
             with self.assertRaises(capture.CaptureError) as ctx:
                 capture.capture_region()
         self.assertIn("boom", str(ctx.exception))
+
+    def test_gnome_wayland_uses_portal_region_only(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "XDG_CURRENT_DESKTOP": "ubuntu:GNOME",
+                "XDG_SESSION_TYPE": "wayland",
+                "WAYLAND_DISPLAY": "wayland-0",
+            },
+            clear=False,
+        ):
+            os.environ.pop("BLANKFLOAT_CAPTURE", None)
+            names = [name for name, _ in capture.active_backends()]
+        self.assertEqual(names, ["portal-region"])
+
+    def test_capture_env_overrides_backends(self):
+        with mock.patch.dict(os.environ, {"BLANKFLOAT_CAPTURE": "flameshot,xdg-portal"}):
+            names = [name for name, _ in capture.active_backends()]
+        self.assertEqual(names, ["flameshot", "xdg-portal"])
 
 
 class PipelineCaptureTest(unittest.TestCase):

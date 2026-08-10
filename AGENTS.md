@@ -5,21 +5,23 @@
 - 세션: Ubuntu GNOME 46, **Wayland** (`XDG_SESSION_TYPE=wayland`), XWayland도 있음 (`DISPLAY=:0`).
 - `org.gnome.Shell.Screenshot.ScreenshotArea` / `SelectArea`는 GNOME 42+에서 막힘:
   `GDBus.Error:org.freedesktop.DBus.Error.AccessDenied: ScreenshotArea is not allowed`.
-- 영역 캡처 우선순위: **portal-region**(비대화형 전체 캡처 + Tk 크롭) → flameshot →
-  interactive portal → …
+- 영역 캡처: GNOME Wayland에서는 **portal-region만** 쓴다 (비대화형 전체 캡처 + Tk 크롭).
+  flameshot / interactive portal / grim / spectacle는 스킵
+  (`BLANKFLOAT_CAPTURE=…`로 강제 가능).
   GNOME interactive portal / flameshot은 권한 allow 후에도
   `InteractiveScreenshot didn't return a file` / response code 2로 자주 실패한다.
   비대화형(`interactive: false`) 전체 캡처는 allow 이후 동작 확인됨.
-- `grim`은 설치돼 있지만 wlroots 전용이라 GNOME에서는 못 씀. `slurp`, `gnome-screenshot` 없음.
-  **`flameshot`은 있음** → 영역 캡처 1순위. GNOME interactive portal은 종종
-  `InteractiveScreenshot didn't return a file` / response code 2로 끝난다.
+- `grim`은 설치돼 있어도 wlroots 전용이라 GNOME에서는 못 씀. `slurp`, `gnome-screenshot` 없음.
 - 포털을 쓸 때는 `parent_window`를 빈 문자열로 보내면 GNOME 46이 거절한다.
   `wayland:` / `x11:$DISPLAY` 같은 non-empty 핸들을 넣는다.
 - 이미 있는 파이썬 모듈: `tkinter`, `gi`(PyGObject), `PIL` 10.2, `requests`. **PySide6 없음** →
   UI는 추가 설치 없이 가는 Tk 기준으로 만들었다.
 - 자동입력(tqtq): `blankfloat/typer/` (`uinput_typer` + Tk UI). `evdev` + `/dev/uinput` 쓰기 권한 필요.
   `./bin/blankfloat`는 자동입력 창(상시) + 답카드 데몬을 한 프로세스/한 mainloop로 띄운다.
+  uinput 디바이스는 프로세스 수명 동안 재사용(첫 open 때만 settle ~1s).
   답→자동입력 연동은 없다. 확인 후 카운트다운·타이핑 중에는 자동입력 창을 `withdraw`한다.
+- 핫키는 데몬 IPC에 의존한다. 로그인 시 데몬: `scripts/install-autostart.sh`.
+  없으면 `capture`/`multi`가 콜드스타트한다.
 - 멀티샷: `blankfloat multi` / `Ctrl+Shift+Alt+M`. 1회=세션 시작+첫 캡처, 2회=모아둔 샷
   일괄 분석·종료. 세션 중 `capture`/`Ctrl+Shift+Alt+A`는 샷만 append. API에는 이미지
   여러 장을 한 메시지에 보냄 (세로 stitch 없음).

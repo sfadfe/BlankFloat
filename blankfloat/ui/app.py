@@ -197,6 +197,12 @@ class FloatingApp:
             self.server = None
         # Tear down the whole app (typer root when embedded as Toplevel).
         main = self.root.master if isinstance(self.root, tk.Toplevel) else self.root
+        closer = getattr(main, "_blankfloat_typer_close", None)
+        if callable(closer):
+            try:
+                closer()
+            except Exception:  # noqa: BLE001 — shutdown best-effort
+                pass
         try:
             main.destroy()
         except tk.TclError:
@@ -413,6 +419,8 @@ def run(cfg: Config, start_capture: bool = False, image: Path | None = None) -> 
     from ..typer import TyperApp
 
     typer = TyperApp()
+    # FloatingApp.quit destroys the shared Tk root; close uinput first.
+    typer.root._blankfloat_typer_close = typer.close  # noqa: SLF001
     app = FloatingApp(
         cfg,
         start_capture=start_capture and image is None,
@@ -421,4 +429,7 @@ def run(cfg: Config, start_capture: bool = False, image: Path | None = None) -> 
     typer.root.protocol("WM_DELETE_WINDOW", app.quit)
     if image is not None:
         app.root.after(200, lambda: app.analyze_file(image))
-    typer.run()
+    try:
+        typer.run()
+    finally:
+        typer.close()

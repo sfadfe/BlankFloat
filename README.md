@@ -15,10 +15,11 @@
 Ubuntu GNOME **Wayland** (개발·검증: Ubuntu 24.04 / GNOME 46), Python 3.10+.
 
 ```bash
-sudo apt install python3-tk python3-gi python3-requests python3-pil python3-evdev
+sudo apt install python3-tk python3-gi python3-requests python3-pil python3-evdev \
+  xdg-desktop-portal xdg-desktop-portal-gnome
 ```
 
-선택: `flameshot` (캡처 폴백). GNOME에서는 `grim`/`slurp`를 쓰지 않는다 (wlroots 전용).
+선택: `flameshot` (비-GNOME 또는 `BLANKFLOAT_CAPTURE` 폴백). GNOME Wayland에서는 기본으로 쓰지 않는다. `grim`/`slurp`는 wlroots 전용.
 
 ### 자동입력 권한 (`/dev/uinput`)
 
@@ -91,6 +92,13 @@ cp example.env .env
 CLI: `./bin/blankfloat capture` / `./bin/blankfloat multi`  
 데몬이 없으면 해당 동작으로 앱을 띄운다.
 
+로그인 시 데몬을 미리 올려 핫키 콜드스타트를 피하려면:
+
+```bash
+./scripts/install-autostart.sh
+./scripts/uninstall-autostart.sh
+```
+
 ### UI 없이 파일만 분석
 
 ```bash
@@ -112,11 +120,12 @@ CLI: `./bin/blankfloat capture` / `./bin/blankfloat multi`
 실제로 쓰는 경로:
 
 1. **캡처** — XDG Desktop Portal (`org.freedesktop.portal.Screenshot`, `python3-gi`)  
-   - 기본: **비대화형 전체 캡처** (`interactive: false`) + **Tk 드래그 크롭** (`portal-region`)  
+   - GNOME Wayland 기본: **비대화형 전체 캡처** + **Tk 드래그 크롭** (`portal-region`만)  
    - `parent_window`는 빈 문자열 금지 → `wayland:` / `x11:$DISPLAY`  
-   - 폴백: flameshot → interactive portal → …
-2. **핫키** — `scripts/install-hotkey.sh`가 GNOME에 `blankfloat capture` / `multi` 등록
-3. **자동입력** — `evdev.UInput` → `/dev/uinput` 가상 키보드 (디스플레이 서버가 아니라 커널 입력 스택)
+   - 다른 세션/강제 폴백: `BLANKFLOAT_CAPTURE=portal-region,flameshot,…`
+2. **핫키** — `scripts/install-hotkey.sh`가 GNOME에 `blankfloat capture` / `multi` 등록  
+   - 데몬 상시: `scripts/install-autostart.sh`
+3. **자동입력** — `evdev.UInput` → `/dev/uinput` (프로세스 수명 동안 재사용)
 
 ## 개발
 
