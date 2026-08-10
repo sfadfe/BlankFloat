@@ -18,7 +18,8 @@
   UI는 추가 설치 없이 가는 Tk 기준으로 만들었다.
 - 자동입력(tqtq): `blankfloat/typer/` (`uinput_typer` + Tk UI). `evdev` + `/dev/uinput` 쓰기 권한 필요.
   `./bin/blankfloat`는 자동입력 창(상시) + 답카드 데몬을 한 프로세스/한 mainloop로 띄운다.
-  uinput 디바이스는 프로세스 수명 동안 재사용(첫 open 때만 settle ~1s).
+  uinput 은 타이핑 구간에만 open/close (`BUS_VIRTUAL`, 이름 `blankfloat-kbd`).
+  상시 USB 가상 키보드는 Dell Inspiron 터치패드 먹통을 유발한다.
   답→자동입력 연동은 없다. 확인 후 카운트다운·타이핑 중에는 자동입력 창을 `withdraw`한다.
   한/영 구간마다 IME 전환 (`typer/ime.py`, 기본 fcitx5). `BLANKFLOAT_IME=off` 로 비활성.
 - 핫키는 데몬 IPC에 의존한다. 로그인 시 데몬: `scripts/install-autostart.sh`.

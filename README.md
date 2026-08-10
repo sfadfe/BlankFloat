@@ -135,7 +135,7 @@ CLI: `./bin/blankfloat capture` / `./bin/blankfloat multi`
    - 다른 세션/강제 폴백: `BLANKFLOAT_CAPTURE=portal-region,flameshot,…`
 2. **핫키** — `scripts/install-hotkey.sh`가 GNOME에 `blankfloat capture` / `multi` 등록  
    - 데몬 상시: `scripts/install-autostart.sh`
-3. **자동입력** — `evdev.UInput` → `/dev/uinput` (프로세스 수명 동안 재사용)
+3. **자동입력** — `evdev.UInput` → `/dev/uinput` (타이핑 때만 열고 닫음, `BUS_VIRTUAL`)
 
 ## 개발
 

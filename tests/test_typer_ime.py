@@ -176,5 +176,23 @@ class TypeTextTypoSkipTest(unittest.TestCase):
         self.assertEqual(presses.count(backspace), 2)
 
 
+class OpenUinputTest(unittest.TestCase):
+    def test_uses_virtual_bus_not_usb(self):
+        from blankfloat.typer import uinput_typer as ut
+
+        captured: dict = {}
+
+        def fake_uinput(*_args, **kwargs):
+            captured.update(kwargs)
+            return mock.Mock()
+
+        with mock.patch.object(ut, "UInput", side_effect=fake_uinput):
+            ut.open_uinput()
+
+        self.assertEqual(captured.get("bustype"), ut.e.BUS_VIRTUAL)
+        self.assertEqual(captured.get("name"), "blankfloat-kbd")
+        self.assertNotEqual(captured.get("bustype"), ut.e.BUS_USB)
+
+
 if __name__ == "__main__":
     unittest.main()

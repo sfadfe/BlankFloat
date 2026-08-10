@@ -26,7 +26,6 @@ uinput_typer.py
 import sys
 import time
 import random
-import threading
 
 try:
     from evdev import UInput, ecodes as e
@@ -306,42 +305,24 @@ def countdown(seconds: int = 5, on_tick=None):
         print("[시작] 타이핑을 시작합니다.\n")
 
 
+# BUS_USB(기본) 가상 키보드는 Dell Inspiron 등에서 터치패드를 먹통으로
+# 만드는 사례가 있다. BUS_VIRTUAL + 전용 이름으로 외부 USB 입력기처럼
+# 보이지 않게 한다. 디바이스는 타이핑 동안에만 연다.
+_UINPUT_NAME = "blankfloat-kbd"
+_UINPUT_VENDOR = 0x0000
+_UINPUT_PRODUCT = 0xBF01
+
+
 def open_uinput() -> "UInput":
     """가상 키보드를 연다. 권한/모듈 문제는 PermissionError/OSError."""
-    return UInput(build_capabilities(), name="virtual-uinput-keyboard")
-
-
-class UInputKeyboard:
-    """Process-lifetime virtual keyboard; settle once after first open."""
-
-    def __init__(self, settle_secs: float = 1.0) -> None:
-        self._settle_secs = settle_secs
-        self._ui: UInput | None = None
-        self._lock = threading.Lock()
-
-    @property
-    def ui(self) -> "UInput | None":
-        return self._ui
-
-    def ensure(self, on_status=None) -> "UInput":
-        with self._lock:
-            if self._ui is not None:
-                return self._ui
-            self._ui = open_uinput()
-            if self._settle_secs > 0:
-                if on_status:
-                    on_status("디바이스 준비 중...")
-                time.sleep(self._settle_secs)
-            return self._ui
-
-    def close(self) -> None:
-        with self._lock:
-            if self._ui is None:
-                return
-            try:
-                self._ui.close()
-            finally:
-                self._ui = None
+    return UInput(
+        build_capabilities(),
+        name=_UINPUT_NAME,
+        bustype=e.BUS_VIRTUAL,
+        vendor=_UINPUT_VENDOR,
+        product=_UINPUT_PRODUCT,
+        phys="blankfloat/uinput",
+    )
 
 
 def type_payload(
@@ -371,13 +352,14 @@ def type_payload(
     ``typo_skip_first``: 전체 타이핑 시작 후 앞 N키는 오타 없음 (구간 넘어가도 이어짐).
 
     ``ui`` 를 넘기면 그 디바이스를 재사용하고 닫지 않는다 (settle 기본 0).
-    없으면 매번 열고 닫으며 settle 기본 1.0초.
+    없으면 타이핑 직전에 열고 끝나면 바로 닫으며 settle 기본 0.25초.
+    (상시 open 은 Dell 터치패드 먹통 유발 — 프로세스 수명 재사용 안 함.)
     """
     from .ime import ImeController, script_runs
 
     owns_ui = ui is None
     if settle_secs is None:
-        settle_secs = 1.0 if owns_ui else 0.0
+        settle_secs = 0.25 if owns_ui else 0.0
     if owns_ui:
         ui = open_uinput()
     assert ui is not None
