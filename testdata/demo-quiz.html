@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>blankfloat 캡처 테스트</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --ink: #1a1a1a;
+      --muted: #5a5a5a;
+      --line: #cfc8bc;
+      --card: #fffdf8;
+      --accent: #0b5fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    header {
+      padding: 28px 24px 8px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 1.55rem;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    main {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 16px 24px 64px;
+      display: grid;
+      gap: 18px;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px 20px 20px;
+    }
+    section h2 {
+      margin: 0 0 4px;
+      font-size: 1.05rem;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .hint {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    ol, ul { margin: 0; padding-left: 1.25rem; }
+    li { margin: 0.55rem 0; }
+    .blank {
+      display: inline-block;
+      min-width: 4.5em;
+      border-bottom: 1.5px solid var(--ink);
+      height: 1.1em;
+      vertical-align: baseline;
+      margin: 0 2px;
+    }
+    .choices label {
+      display: block;
+      margin: 0.35rem 0;
+    }
+    .math {
+      font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", serif;
+      font-size: 1.05rem;
+    }
+    .writing {
+      white-space: pre-wrap;
+      border-left: 3px solid var(--line);
+      padding-left: 12px;
+      margin: 8px 0 0;
+    }
+    footer {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 24px 40px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>blankfloat 캡처 테스트</h1>
+    <p>영역만 잘라서 찍어 보세요. 섹션마다 라우트가 다르게 나와야 합니다.</p>
+  </header>
+
+  <main>
+    <section id="simple-blank">
+      <div class="tag">예상: simple</div>
+      <h2>1. 빈칸 채우기</h2>
+      <p class="hint">짧은 단답. 답이 바로 떠야 함.</p>
+      <ol>
+        <li>물의 화학식은 <span class="blank"></span> 이다.</li>
+        <li>대한민국의 수도는 <span class="blank"></span> 이다.</li>
+        <li>지구는 태양계에서 <span class="blank"></span> 번째 행성이다.</li>
+      </ol>
+    </section>
+
+    <section id="simple-choice">
+      <div class="tag">예상: simple</div>
+      <h2>2. 객관식</h2>
+      <p class="hint">선택지가 보이면 정답만 뽑으면 됨.</p>
+      <p><strong>Q.</strong> HTTP에서 리소스를 조회할 때 쓰는 메서드는?</p>
+      <div class="choices">
+        <label>A) POST</label>
+        <label>B) GET</label>
+        <label>C) DELETE</label>
+        <label>D) PATCH</label>
+      </div>
+    </section>
+
+    <section id="simple-math">
+      <div class="tag">예상: simple</div>
+      <h2>3. 짧은 계산</h2>
+      <p class="hint">최종 숫자만. 풀이 과정은 필요 없음.</p>
+      <ol class="math">
+        <li>17 + 25 = <span class="blank"></span></li>
+        <li>3² × 4 = <span class="blank"></span></li>
+        <li>√81 = <span class="blank"></span></li>
+      </ol>
+    </section>
+
+    <section id="complex-essay">
+      <div class="tag">예상: complex</div>
+      <h2>4. 서술형 / 글쓰기</h2>
+      <p class="hint">긴 답·개요가 필요한 과제. 영문 프롬프트가 나와야 함.</p>
+      <div class="writing">Write a 300–400 word reflection on how remote work has changed collaboration in software teams.
+Include at least one concrete example (meeting, code review, or onboarding) and discuss both benefits and drawbacks.
+Use a clear introduction, two body paragraphs, and a short conclusion.</div>
+    </section>
+
+    <section id="complex-ko">
+      <div class="tag">예상: complex</div>
+      <h2>5. 한글 에세이 과제</h2>
+      <p class="hint">한국어 장문. outline + 영문 prompt.</p>
+      <div class="writing">다음 주제에 대해 800자 내외의 글을 쓰시오.
+
+주제: 인공지능이 대학 과제 평가 방식에 미치는 영향
+- 서론에서 문제를 제시하고
+- 본론에서 긍정적·부정적 측면을 각각 한 가지 이상 다루며
+- 결론에서 본인의 입장을 밝히시오.</div>
+    </section>
+
+    <section id="mixed">
+      <div class="tag">예상: simple (또는 강제 모드 테스트)</div>
+      <h2>6. 짧은 영어 빈칸</h2>
+      <ol>
+        <li>She ____ (go) to school every day.</li>
+        <li>There ____ (be) three apples on the table.</li>
+        <li>Antonym of “hot”: ____</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    파일 위치: <code>testdata/demo-quiz.html</code> ·
+    브라우저에서 연 뒤 <code>./bin/blankfloat --capture</code> 또는 핫키로 영역 캡처
+  </footer>
+</body>
+</html>
