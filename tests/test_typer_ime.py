@@ -114,6 +114,67 @@ class TypePayloadImeTest(unittest.TestCase):
         self.assertEqual(modes, ["latin", "hangul", "restore:keyboard-us"])
         self.assertEqual(typed, ["Hi ", hangul_to_qwerty("안녕")])
 
+    def test_typo_skip_first_carries_across_chunks(self):
+        skips: list[int] = []
+
+        class FakeIme:
+            def snapshot(self):
+                return ime.ImeSnapshot(backend="fcitx5", name="keyboard-us")
+
+            def set_mode(self, mode):
+                return None
+
+            def restore(self, snap):
+                return None
+
+        fake_ui = object()
+
+        def capture(_ui, text, **kwargs):
+            skips.append(kwargs.get("typo_skip_first", 0))
+
+        with mock.patch("blankfloat.typer.uinput_typer.type_text", side_effect=capture):
+            type_payload(
+                "Hi 안녕",
+                countdown_secs=0,
+                settle_secs=0,
+                ui=fake_ui,
+                ime=FakeIme(),
+                typo_skip_first=8,
+            )
+
+        # "Hi " is 3 keys; remaining grace for hangul chunk is 5.
+        self.assertEqual(skips, [8, 5])
+
+
+class TypeTextTypoSkipTest(unittest.TestCase):
+    def test_skips_typos_for_leading_keys(self):
+        from blankfloat.typer import uinput_typer as ut
+
+        presses: list[object] = []
+
+        def fake_press(_ui, keycode, shift=False):
+            presses.append(keycode)
+
+        with mock.patch.object(ut, "press_key", side_effect=fake_press), mock.patch.object(
+            ut.time, "sleep"
+        ), mock.patch.object(ut.random, "random", return_value=0.0), mock.patch.object(
+            ut.random, "choice", return_value="s"
+        ), mock.patch.object(ut.random, "uniform", return_value=0.01), mock.patch.object(
+            ut.random, "gammavariate", return_value=0.01
+        ):
+            ut.type_text(
+                object(),
+                "aaaa",
+                typo_prob=1.0,
+                typo_skip_first=2,
+                pause_prob=0.0,
+                long_pause_prob=0.0,
+            )
+
+        # First two keys: clean 'a' only. Later keys: typo + backspace + 'a'.
+        backspace = ut.e.KEY_BACKSPACE
+        self.assertEqual(presses.count(backspace), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

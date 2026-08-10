@@ -109,9 +109,29 @@ class FloatingApp:
         close = tk.Label(
             header, text="✕", bg=PALETTE["bg"], fg=PALETTE["muted"], font=self.fonts["body"]
         )
-        close.pack(side="right", padx=10)
+        close.pack(side="right", padx=(4, 10))
         close.bind("<Button-1>", lambda _e: self.hide())
         self._hover(close, PALETTE["text"], PALETTE["muted"])
+
+        # Small clipboard icon left of ✕; keep a ref so Tk doesn't GC the image.
+        icon_path = Path(__file__).resolve().parent / "icons" / "copy.png"
+        self._copy_icon = tk.PhotoImage(file=str(icon_path))
+        self.copy_btn = tk.Label(
+            header,
+            image=self._copy_icon,
+            bg=PALETTE["bg"],
+            cursor="hand2",
+            padx=4,
+            pady=2,
+        )
+        self.copy_btn.pack(side="right")
+        self.copy_btn.bind("<Button-1>", lambda _e: self.copy_to_clipboard())
+        self.copy_btn.bind(
+            "<Enter>", lambda _e: self.copy_btn.configure(bg=PALETTE["accent_dim"]), add="+"
+        )
+        self.copy_btn.bind(
+            "<Leave>", lambda _e: self.copy_btn.configure(bg=PALETTE["bg"]), add="+"
+        )
 
         for widget in (header, self.elapsed_label):
             widget.bind("<Button-1>", self._drag_start)
@@ -190,6 +210,22 @@ class FloatingApp:
         self.root.deiconify()
         self.root.attributes("-topmost", True)
         self.root.lift()
+
+    def copy_to_clipboard(self) -> None:
+        """Copy the visible answer/prompt text to the clipboard."""
+        content = self.text.get("1.0", "end-1c")
+        if not content.strip():
+            return
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(content)
+            # Claim CLIPBOARD so the paste survives briefly after hide/withdraw.
+            self.root.update_idletasks()
+        except tk.TclError:
+            return
+        # Brief flash so the click registers without extra chrome.
+        self.copy_btn.configure(bg=PALETTE["text"])
+        self.root.after(120, lambda: self.copy_btn.configure(bg=PALETTE["bg"]))
 
     def quit(self) -> None:
         if self.server:
@@ -420,7 +456,7 @@ class FloatingApp:
         self.text.delete("1.0", "end")
 
     def _end_text(self) -> None:
-        # Keep selectable so the user can copy answers/prompt without extra chrome.
+        # Keep selectable for drag-select; header also has a one-click copy button.
         self.text.configure(state="normal")
 
     def _set_elapsed(self, elapsed: float) -> None:

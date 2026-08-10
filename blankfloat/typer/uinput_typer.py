@@ -257,20 +257,22 @@ def type_text(
     typo_prob: float = 0.045,
     pause_prob: float = 0.06,
     long_pause_prob: float = 0.012,
+    typo_skip_first: int = 0,
 ):
     """
     문자열을 한 글자씩 키 인터럽트로 주입한다.
     - typo_prob: 글자마다 인접키 오타 → Backspace → 재입력
+    - typo_skip_first: 앞 N키는 오타 시뮬레이션 안 함 (시작 직후 티 안 나게)
     - 지연은 불규칙(짧은 연타 / 짧은 멈춤 / 드물게 긴 멈춤)
     """
-    for ch in text:
+    for index, ch in enumerate(text):
         mapping = CHAR_MAP.get(ch)
         if mapping is None:
             sys.stderr.write(f"[경고] 매핑되지 않은 문자 건너뜀: {ch!r}\n")
             continue
 
         typo = None
-        if random.random() < typo_prob:
+        if index >= typo_skip_first and random.random() < typo_prob:
             typo = _pick_typo_char(ch)
 
         if typo is not None:
@@ -355,6 +357,7 @@ def type_payload(
     typo_prob: float = 0.045,
     pause_prob: float = 0.06,
     long_pause_prob: float = 0.012,
+    typo_skip_first: int = 8,
     on_tick=None,
     on_status=None,
     ime=None,
@@ -364,6 +367,8 @@ def type_payload(
 
     기본값: 한글/영문 구간마다 IME를 맞춘 뒤, 한글 구간만 두벌식 QWERTY로
     바꿔 보낸다 (``switch_ime`` / ``convert_hangul`` 로 끌 수 있음).
+
+    ``typo_skip_first``: 전체 타이핑 시작 후 앞 N키는 오타 없음 (구간 넘어가도 이어짐).
 
     ``ui`` 를 넘기면 그 디바이스를 재사용하고 닫지 않는다 (settle 기본 0).
     없으면 매번 열고 닫으며 settle 기본 1.0초.
@@ -396,6 +401,7 @@ def type_payload(
         if on_status:
             on_status("타이핑 중...")
 
+        skip_left = max(0, int(typo_skip_first))
         for mode, chunk in runs:
             if not chunk:
                 continue
@@ -413,7 +419,9 @@ def type_payload(
                 typo_prob=typo_prob,
                 pause_prob=pause_prob,
                 long_pause_prob=long_pause_prob,
+                typo_skip_first=skip_left,
             )
+            skip_left = max(0, skip_left - len(payload))
         if on_status:
             on_status("완료")
     finally:

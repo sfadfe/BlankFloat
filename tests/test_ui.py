@@ -132,6 +132,18 @@ class FloatingAppTest(unittest.TestCase):
         self.assertNotIn("blurry_crop", self.rendered())
         self.assertEqual(self.app.elapsed_label.cget("text"), "0s")
 
+    def test_copy_to_clipboard(self):
+        self.app._finish(
+            Result(analysis=Analysis(route="simple", answers=[Answer("1", "광합성")]), elapsed=1.0)
+        )
+        self.app.copy_to_clipboard()
+        self.app.root.update_idletasks()
+        self.assertIn("1) 광합성", self.app.root.clipboard_get())
+
+    def test_copy_button_exists(self):
+        self.assertTrue(hasattr(self.app, "copy_btn"))
+        self.assertEqual(str(self.app.copy_btn.cget("image")), str(self.app._copy_icon))
+
     def test_window_has_white_border(self):
         self.assertEqual(self.app.root.cget("bg"), "#ffffff")
 
