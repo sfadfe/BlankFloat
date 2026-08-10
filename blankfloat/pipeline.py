@@ -36,7 +36,12 @@ def analyze_image(image_path: Path, user_mode: str, cfg: Config) -> Result:
     return analyze_images([image_path], user_mode, cfg)
 
 
-def analyze_images(image_paths: list[Path], user_mode: str, cfg: Config) -> Result:
+def analyze_images(
+    image_paths: list[Path],
+    user_mode: str,
+    cfg: Config,
+    extra_text: str = "",
+) -> Result:
     if not image_paths:
         return Result(error="이미지가 없습니다.")
 
@@ -44,10 +49,13 @@ def analyze_images(image_paths: list[Path], user_mode: str, cfg: Config) -> Resu
     model_mode = user_mode if user_mode in ("simple", "complex") else "auto"
     raw_text = ""
     first = image_paths[0]
+    note = (extra_text or "").strip()
 
     for attempt in (False, True):  # one retry on unusable JSON
         try:
-            raw_text = client.analyze(image_paths, model_mode, cfg, retry=attempt)
+            raw_text = client.analyze(
+                image_paths, model_mode, cfg, retry=attempt, extra_text=note
+            )
         except client.ApiError as exc:
             return Result(
                 image_path=first,

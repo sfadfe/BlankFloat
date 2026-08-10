@@ -86,8 +86,8 @@ cp example.env .env
 
 | 핫키 (기본) | 동작 |
 |-------------|------|
-| `Ctrl+Shift+Alt+A` | 단일 캡처·분석. 멀티 세션 중이면 샷만 추가 |
-| `Ctrl+Shift+Alt+M` | 멀티샷 토글: 1회=세션 시작+첫 캡처, 2회=모아둔 샷 일괄 분석·종료 |
+| `Ctrl+Shift+Alt+A` | 캡처. 평소=단발 분석, 멀티 세션 중=샷만 추가 |
+| `Ctrl+Shift+Alt+M` | 멀티샷 on/off. off로 끌 때 메모 입력 후 모아둔 샷 일괄 분석 (Enter 전송 / Esc 취소) |
 
 CLI: `./bin/blankfloat capture` / `./bin/blankfloat multi`  
 데몬이 없으면 해당 동작으로 앱을 띄운다.
@@ -97,6 +97,14 @@ CLI: `./bin/blankfloat capture` / `./bin/blankfloat multi`
 ```bash
 ./scripts/install-autostart.sh
 ./scripts/uninstall-autostart.sh
+```
+
+앱 그리드/대시용 바로가기:
+
+```bash
+./scripts/install-desktop.sh            # ~/.local/share/applications
+./scripts/install-desktop.sh --desktop  # + 바탕화면 복사
+./scripts/uninstall-desktop.sh
 ```
 
 ### UI 없이 파일만 분석

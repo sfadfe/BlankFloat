@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "multi",
         parents=[shared],
-        help="멀티샷 토글 (시작+첫캡처 / 모아둔 샷 분석·종료)",
+        help="멀티샷 토글 (세션 on/off; 캡처는 capture 핫키)",
     )
     sub.add_parser("config", parents=[shared], help="현재 설정 출력")
     sub.add_parser("stop", help="실행 중인 앱 종료")
@@ -73,7 +73,7 @@ def cmd_multi(args) -> int:
     from .typer import TyperApp
     from .ui.app import FloatingApp
 
-    # No daemon yet: start app and enter multi-shot on the first paint.
+    # No daemon yet: start app and arm multi-shot (captures via capture hotkey).
     cfg = _config(args)
     typer = TyperApp()
     typer.root._blankfloat_typer_close = typer.close  # noqa: SLF001

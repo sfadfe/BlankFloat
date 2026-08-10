@@ -45,6 +45,7 @@ def _messages(
     mode: str,
     retry: bool,
     payload_style: str,
+    extra_text: str = "",
 ) -> list[dict]:
     if isinstance(image_b64s, str):
         image_b64s = [image_b64s]
@@ -59,6 +60,9 @@ def _messages(
             f"(capture order: image 1 is first). Treat them as one continuous task.\n\n"
             + text
         )
+    note = (extra_text or "").strip()
+    if note:
+        text = f"{text}\n\nAdditional user note:\n{note}"
     content.append({"type": "text", "text": text})
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -128,6 +132,7 @@ def analyze(
     mode: str,
     cfg: Config,
     retry: bool = False,
+    extra_text: str = "",
 ) -> str:
     """Send one or more screenshots and return the raw assistant text."""
     if not cfg.api_key:
@@ -143,9 +148,10 @@ def analyze(
     image_b64s = [encode_image(path, cfg.max_image_px) for path in paths]
     styles = [cfg.image_payload, "data_url" if cfg.image_payload == "base64" else "base64"]
     names = ",".join(p.name for p in paths)
+    note = (extra_text or "").strip()
     _debug_log(
         f"analyze start mode={mode} retry={retry} model={cfg.model} "
-        f"images={len(paths)} ({names})"
+        f"images={len(paths)} ({names}) note={bool(note)}"
     )
 
     last_error = ""
@@ -155,7 +161,10 @@ def analyze(
         for style in styles:
             try:
                 started = time.monotonic()
-                response = _post(cfg, _messages(image_b64s, mode, retry, style))
+                response = _post(
+                    cfg,
+                    _messages(image_b64s, mode, retry, style, extra_text=note),
+                )
                 elapsed = time.monotonic() - started
             except requests.Timeout as exc:
                 _debug_log(f"timeout style={style}")

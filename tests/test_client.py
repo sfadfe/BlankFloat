@@ -59,6 +59,16 @@ class MessageShapeTest(unittest.TestCase):
         self.assertEqual(content[1]["image_url"]["url"], "BBB")
         self.assertIn("2 sequential screenshots", content[2]["text"])
 
+    def test_extra_text_appended_to_user_message(self):
+        messages = client._messages("AAAA", "auto", False, "base64", extra_text="  객관식만  ")
+        text = messages[1]["content"][1]["text"]
+        self.assertIn("Additional user note:", text)
+        self.assertIn("객관식만", text)
+
+    def test_blank_extra_text_is_ignored(self):
+        messages = client._messages("AAAA", "auto", False, "base64", extra_text="  \n")
+        self.assertNotIn("Additional user note:", messages[1]["content"][1]["text"])
+
 
 class PipelineErrorTest(unittest.TestCase):
     def test_missing_api_key_becomes_result_error(self):

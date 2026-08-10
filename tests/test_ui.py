@@ -176,19 +176,79 @@ class FloatingAppTest(unittest.TestCase):
         self.assertFalse(self.app.busy)
         self.assertFalse(self.app.root.winfo_viewable())
 
-    def test_multi_finish_analyzes_collected_shots(self):
+    def test_multi_start_arms_without_capture(self):
+        from unittest import mock
+
+        with mock.patch.object(self.app, "start_capture") as capture:
+            self.app.toggle_multi()
+        self.assertTrue(self.app.multi_active)
+        self.assertEqual(self.app.multi_paths, [])
+        self.assertFalse(self.app.busy)
+        capture.assert_not_called()
+
+    def test_multi_finish_prompts_note_then_analyzes(self):
         from pathlib import Path
         from unittest import mock
 
         paths = [Path("/tmp/a.png"), Path("/tmp/b.png")]
         self.app.multi_active = True
         self.app.multi_paths = list(paths)
-        with mock.patch.object(self.app, "_spawn_analyze_paths") as spawn:
+        with mock.patch.object(self.app, "_prompt_multi_note") as prompt:
             self.app.toggle_multi()
         self.assertFalse(self.app.multi_active)
         self.assertEqual(self.app.multi_paths, [])
         self.assertTrue(self.app.busy)
-        spawn.assert_called_once_with(paths, self.app.mode)
+        prompt.assert_called_once_with(paths)
+
+    def test_multi_note_enter_spawns_analyze(self):
+        from pathlib import Path
+        from unittest import mock
+
+        paths = [Path("/tmp/a.png")]
+        self.app.busy = True
+        with mock.patch.object(self.app, "_spawn_analyze_paths") as spawn:
+            self.app._prompt_multi_note(paths)
+            self.app.root.update()
+            dlg = next(
+                w for w in self.app.root.winfo_children() if isinstance(w, tk.Toplevel)
+            )
+            entry = None
+            stack = [dlg]
+            while stack:
+                w = stack.pop()
+                if isinstance(w, tk.Entry):
+                    entry = w
+                    break
+                stack.extend(w.winfo_children())
+            self.assertIsNotNone(entry)
+            entry.insert(0, "힌트 있음")
+            dlg._blankfloat_submit()
+            self.app.root.update_idletasks()
+        spawn.assert_called_once_with(paths, self.app.mode, extra_text="힌트 있음")
+
+    def test_multi_note_esc_cancels(self):
+        from pathlib import Path
+        from unittest import mock
+
+        paths = [Path("/tmp/a.png")]
+        self.app.busy = True
+        with mock.patch.object(self.app, "_spawn_analyze_paths") as spawn:
+            self.app._prompt_multi_note(paths)
+            self.app.root.update()
+            dlg = next(
+                w for w in self.app.root.winfo_children() if isinstance(w, tk.Toplevel)
+            )
+            dlg._blankfloat_cancel()
+            self.app.root.update_idletasks()
+        spawn.assert_not_called()
+        self.assertFalse(self.app.busy)
+
+    def test_complete_multi_note_none_clears_busy(self):
+        from pathlib import Path
+
+        self.app.busy = True
+        self.app._complete_multi_note([Path("/tmp/a.png")], None)
+        self.assertFalse(self.app.busy)
 
 
 @unittest.skipUnless(HAS_DISPLAY, "no usable display")

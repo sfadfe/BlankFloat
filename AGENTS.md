@@ -22,9 +22,10 @@
   답→자동입력 연동은 없다. 확인 후 카운트다운·타이핑 중에는 자동입력 창을 `withdraw`한다.
 - 핫키는 데몬 IPC에 의존한다. 로그인 시 데몬: `scripts/install-autostart.sh`.
   없으면 `capture`/`multi`가 콜드스타트한다.
-- 멀티샷: `blankfloat multi` / `Ctrl+Shift+Alt+M`. 1회=세션 시작+첫 캡처, 2회=모아둔 샷
-  일괄 분석·종료. 세션 중 `capture`/`Ctrl+Shift+Alt+A`는 샷만 append. API에는 이미지
-  여러 장을 한 메시지에 보냄 (세로 stitch 없음).
+- 멀티샷: `blankfloat multi` / `Ctrl+Shift+Alt+M`은 세션 on/off만.
+  샷은 `capture`/`Ctrl+Shift+Alt+A`로 append. 종료(2회 M) 시 모아둔 샷 일괄 분석.
+  API에는 이미지 여러 장을 한 메시지에 보냄 (세로 stitch 없음). 종료 직후 짧은 메모
+  입력창이 뜨고, Enter면 메모를 붙여 API 전송·창 닫힘, Esc면 전송 취소.
 
 ## 설정 / 비밀
 

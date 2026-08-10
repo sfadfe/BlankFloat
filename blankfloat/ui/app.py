@@ -225,7 +225,10 @@ class FloatingApp:
         self.root.after(350, lambda: self._spawn_capture(mode, append_only=append_only))
 
     def toggle_multi(self) -> None:
-        """Multi hotkey: start session + first shot, or finish + analyze."""
+        """Multi hotkey: arm session, or finish + note + analyze.
+
+        Captures while armed come from the normal capture hotkey (append only).
+        """
         if self.busy:
             return
         if self.multi_active:
@@ -238,12 +241,102 @@ class FloatingApp:
             self.busy = True
             self.root.withdraw()
             self.root.update_idletasks()
-            self._spawn_analyze_paths(list(paths), self.mode)
+            self._prompt_multi_note(list(paths))
             return
 
         self.multi_active = True
         self.multi_paths = []
-        self.start_capture()
+
+    def _prompt_multi_note(self, paths: list[Path]) -> None:
+        """Ask for an optional note; Enter sends to API, Esc cancels."""
+        dlg = tk.Toplevel(self.root)
+        dlg.overrideredirect(True)
+        dlg.attributes("-topmost", True)
+        dlg.configure(bg=PALETTE["border"])
+        dlg.resizable(False, False)
+
+        shell = tk.Frame(dlg, bg=PALETTE["border"])
+        shell.pack(fill="both", expand=True)
+        body = tk.Frame(shell, bg=PALETTE["bg"])
+        body.pack(fill="both", expand=True, padx=_BORDER, pady=_BORDER)
+
+        hint = tk.Label(
+            body,
+            text="추가 메모 (Enter 전송 / Esc 취소)",
+            bg=PALETTE["bg"],
+            fg=PALETTE["muted"],
+            font=self.fonts["small"],
+            anchor="w",
+        )
+        hint.pack(fill="x", padx=10, pady=(8, 4))
+
+        entry = tk.Entry(
+            body,
+            bg=PALETTE["bg"],
+            fg=PALETTE["text"],
+            insertbackground=PALETTE["text"],
+            relief="flat",
+            font=self.fonts["answer"],
+            highlightthickness=0,
+            borderwidth=0,
+        )
+        entry.pack(fill="x", padx=10, pady=(0, 10))
+
+        width, height = 420, 72
+        screen_w = dlg.winfo_screenwidth()
+        screen_h = dlg.winfo_screenheight()
+        x = max(20, (screen_w - width) // 2)
+        y = max(40, (screen_h - height) // 3)
+        dlg.geometry(f"{width}x{height}+{x}+{y}")
+
+        done = {"closed": False}
+
+        def close_dialog() -> None:
+            try:
+                dlg.grab_release()
+            except tk.TclError:
+                pass
+            try:
+                dlg.destroy()
+            except tk.TclError:
+                pass
+
+        def submit(_event: object | None = None) -> str | None:
+            if done["closed"]:
+                return "break"
+            done["closed"] = True
+            note = entry.get()
+            close_dialog()
+            self._complete_multi_note(paths, note)
+            return "break"
+
+        def cancel(_event: object | None = None) -> str | None:
+            if done["closed"]:
+                return "break"
+            done["closed"] = True
+            close_dialog()
+            self._complete_multi_note(paths, None)
+            return "break"
+
+        entry.bind("<Return>", submit)
+        dlg.bind("<Escape>", cancel)
+        entry.bind("<Escape>", cancel)
+        # Test hooks (event_generate is unreliable with grab/overrideredirect).
+        dlg._blankfloat_submit = submit  # noqa: SLF001
+        dlg._blankfloat_cancel = cancel  # noqa: SLF001
+
+        try:
+            dlg.grab_set()
+        except tk.TclError:
+            pass
+        entry.focus_force()
+
+    def _complete_multi_note(self, paths: list[Path], note: str | None) -> None:
+        """Finish the multi-shot note dialog: None cancels, str sends to API."""
+        if note is None:
+            self.busy = False
+            return
+        self._spawn_analyze_paths(paths, self.mode, extra_text=note)
 
     def _spawn_capture(self, mode: str, *, append_only: bool) -> None:
         def work() -> None:
@@ -254,9 +347,14 @@ class FloatingApp:
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _spawn_analyze_paths(self, paths: list[Path], mode: str) -> None:
+    def _spawn_analyze_paths(
+        self, paths: list[Path], mode: str, extra_text: str = ""
+    ) -> None:
+        note = extra_text
         thread = threading.Thread(
-            target=lambda: self.queue.put(pipeline.analyze_images(paths, mode, self.cfg)),
+            target=lambda: self.queue.put(
+                pipeline.analyze_images(paths, mode, self.cfg, extra_text=note)
+            ),
             daemon=True,
         )
         thread.start()
