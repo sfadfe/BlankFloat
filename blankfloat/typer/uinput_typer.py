@@ -97,22 +97,11 @@ CHAR_MAP = {
 
 
 # ---------------------------------------------------------------------------
-# 2. (스켈레톤) 한글 → 두벌식 QWERTY 키 매핑
+# 2. 한글 → 두벌식 QWERTY 키 매핑
 # ---------------------------------------------------------------------------
-# [중요 주석]
-#   이 스크립트는 글자에 해당하는 '물리 키코드'만 주입한다. 그 키코드가 화면에
-#   'ㄱ/ㅏ' 같은 한글로 나타나려면, 입력을 받는 OS의 IME(fcitx/ibus 등)가
-#   실제로 '한글(두벌식) 입력 모드'여야 한다.
-#
-#   - 요구사항의 "IME가 영문 상태로 고정"이라는 가정을 그대로 적용하면,
-#     아래 키코드는 'rkrk...' 같은 영문 알파벳으로 찍힌다(한글로 조합되지 않음).
-#   - 실제로 한글을 입력하려면 타이핑 시작 전에 한/영 키로 IME를 한글 모드로
-#     전환해 두어야 한다. (한/영 전환 자체를 코드로 보내려면 KEY_HANGEUL 또는
-#     KEY_RIGHTALT 등을 환경에 맞게 주입해야 하며, 환경별 편차가 크므로
-#     여기서는 뼈대만 제공한다.)
-#
-#   동작: 완성형 한글 음절(가-힣)을 초성/중성/종성 자모로 분해한 뒤,
-#         각 자모를 두벌식 자판의 QWERTY 글자로 바꿔 CHAR_MAP 으로 흘려보낸다.
+# 물리 키코드만 주입한다. 한글 조합은 OS IME가 한다.
+# type_payload 가 한글/영문 구간마다 IME를 맞춘 뒤(ime.py), 한글 구간만
+# 아래 매핑으로 QWERTY 시퀀스를 보낸다.
 
 # 유니코드 완성형 한글 분해용 자모 테이블
 _CHOSEONG = [  # 초성 19
@@ -358,6 +347,7 @@ def type_payload(
     *,
     countdown_secs: int = 3,
     convert_hangul: bool = True,
+    switch_ime: bool = True,
     settle_secs: float | None = None,
     ui: "UInput | None" = None,
     min_delay: float = 0.03,
@@ -367,22 +357,32 @@ def type_payload(
     long_pause_prob: float = 0.012,
     on_tick=None,
     on_status=None,
+    ime=None,
 ):
     """
     uinput 으로 text 를 타이핑한다.
-    convert_hangul=True 이면 완성형 한글을 두벌식 QWERTY 시퀀스로 바꾼다
-    (IME가 한글 모드일 때 한글로 조합됨).
+
+    기본값: 한글/영문 구간마다 IME를 맞춘 뒤, 한글 구간만 두벌식 QWERTY로
+    바꿔 보낸다 (``switch_ime`` / ``convert_hangul`` 로 끌 수 있음).
 
     ``ui`` 를 넘기면 그 디바이스를 재사용하고 닫지 않는다 (settle 기본 0).
     없으면 매번 열고 닫으며 settle 기본 1.0초.
     """
-    payload = hangul_to_qwerty(text) if convert_hangul else text
+    from .ime import ImeController, script_runs
+
     owns_ui = ui is None
     if settle_secs is None:
         settle_secs = 1.0 if owns_ui else 0.0
     if owns_ui:
         ui = open_uinput()
     assert ui is not None
+
+    controller = ime
+    if switch_ime and controller is None:
+        controller = ImeController()
+    snap = controller.snapshot() if controller is not None else None
+    runs = script_runs(text) if (switch_ime or convert_hangul) else [("latin", text)]
+
     try:
         # 커널/udev 가 새 디바이스를 인식해 입력 스택에 붙일 시간
         if settle_secs > 0:
@@ -395,18 +395,33 @@ def type_payload(
             countdown(countdown_secs, on_tick=on_tick)
         if on_status:
             on_status("타이핑 중...")
-        type_text(
-            ui,
-            payload,
-            min_delay=min_delay,
-            max_delay=max_delay,
-            typo_prob=typo_prob,
-            pause_prob=pause_prob,
-            long_pause_prob=long_pause_prob,
-        )
+
+        for mode, chunk in runs:
+            if not chunk:
+                continue
+            if controller is not None:
+                controller.set_mode(mode)
+            if mode == "hangul" and convert_hangul:
+                payload = hangul_to_qwerty(chunk)
+            else:
+                payload = chunk
+            type_text(
+                ui,
+                payload,
+                min_delay=min_delay,
+                max_delay=max_delay,
+                typo_prob=typo_prob,
+                pause_prob=pause_prob,
+                long_pause_prob=long_pause_prob,
+            )
         if on_status:
             on_status("완료")
     finally:
+        if controller is not None:
+            try:
+                controller.restore(snap)
+            except Exception:  # noqa: BLE001 — typing already finished
+                pass
         if owns_ui:
             ui.close()
 

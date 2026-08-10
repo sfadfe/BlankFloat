@@ -20,6 +20,7 @@
   `./bin/blankfloat`는 자동입력 창(상시) + 답카드 데몬을 한 프로세스/한 mainloop로 띄운다.
   uinput 디바이스는 프로세스 수명 동안 재사용(첫 open 때만 settle ~1s).
   답→자동입력 연동은 없다. 확인 후 카운트다운·타이핑 중에는 자동입력 창을 `withdraw`한다.
+  한/영 구간마다 IME 전환 (`typer/ime.py`, 기본 fcitx5). `BLANKFLOAT_IME=off` 로 비활성.
 - 핫키는 데몬 IPC에 의존한다. 로그인 시 데몬: `scripts/install-autostart.sh`.
   없으면 `capture`/`multi`가 콜드스타트한다.
 - 멀티샷: `blankfloat multi` / `Ctrl+Shift+Alt+M`은 세션 on/off만.

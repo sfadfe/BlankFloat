@@ -72,7 +72,9 @@ cp example.env .env
 - 전체 종료: 자동입력 창 닫기, `Ctrl+Q`, 또는 `./bin/blankfloat stop`.
 - 답 카드 텍스트는 드래그해서 복사하면 된다. (답 → 자동입력 자동 연동은 없음)
 
-한글은 두벌식 QWERTY 시퀀스로 보내고, 대상 창 IME가 한글 모드일 때 조합된다.
+한글/영문 구간마다 IME를 맞춘다 (이 환경 기본: fcitx5 `hangul` / `keyboard-us`).
+한글 구간만 두벌식 QWERTY로 바꿔 보내고, 끝나면 원래 IME로 되돌린다.
+(`BLANKFLOAT_IME=off` 로 끌 수 있음. 엔진 이름: `BLANKFLOAT_IME_HANGUL` / `BLANKFLOAT_IME_LATIN`)
 
 ### 핫키 (GNOME)
 
