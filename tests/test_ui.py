@@ -202,11 +202,27 @@ class FloatingAppTest(unittest.TestCase):
         from pathlib import Path
         from unittest import mock
 
+        from blankfloat.ui.app import _HOTKEY_SETTLE_MS
+
         paths = [Path("/tmp/a.png"), Path("/tmp/b.png")]
         self.app.multi_active = True
         self.app.multi_paths = list(paths)
-        with mock.patch.object(self.app, "_prompt_multi_note") as prompt:
-            self.app.toggle_multi()
+        pending = []
+        orig_after = self.app.root.after
+
+        def after_spy(ms, func=None, *args):
+            if func is None:
+                return orig_after(ms)
+            if ms == _HOTKEY_SETTLE_MS:
+                pending.append(func)
+                return "settle"
+            return orig_after(ms, func, *args)
+
+        with mock.patch.object(self.app.root, "after", side_effect=after_spy):
+            with mock.patch.object(self.app, "_prompt_multi_note") as prompt:
+                self.app.toggle_multi()
+                self.assertEqual(len(pending), 1)
+                pending[0]()
         self.assertFalse(self.app.multi_active)
         self.assertEqual(self.app.multi_paths, [])
         self.assertTrue(self.app.busy)

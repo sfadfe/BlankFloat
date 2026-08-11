@@ -25,6 +25,8 @@ _GRIP_H = 18
 _PAD_X = 32
 _PAD_Y = 20
 _BORDER = 1
+# Wait for Ctrl/Shift/Alt hotkey chord to release before capture/dialog focus.
+_HOTKEY_SETTLE_MS = 350
 
 
 class FloatingApp:
@@ -258,7 +260,9 @@ class FloatingApp:
         self.root.update_idletasks()
         mode = self.mode
         append_only = self.multi_active
-        self.root.after(350, lambda: self._spawn_capture(mode, append_only=append_only))
+        self.root.after(
+            _HOTKEY_SETTLE_MS, lambda: self._spawn_capture(mode, append_only=append_only)
+        )
 
     def toggle_multi(self) -> None:
         """Multi hotkey: arm session, or finish + note + analyze.
@@ -277,15 +281,26 @@ class FloatingApp:
             self.busy = True
             self.root.withdraw()
             self.root.update_idletasks()
-            self._prompt_multi_note(list(paths))
+            # Same settle as capture: open after Ctrl+Shift+Alt+M is released,
+            # otherwise grab/focus on the note entry fails on Wayland/GNOME.
+            shot_paths = list(paths)
+            self.root.after(
+                _HOTKEY_SETTLE_MS, lambda: self._prompt_multi_note(shot_paths)
+            )
             return
 
         self.multi_active = True
         self.multi_paths = []
 
+    def _tk_root(self) -> tk.Misc:
+        """Ultimate Tk root (typer window when answer card is a Toplevel)."""
+        main = self.root.master if isinstance(self.root, tk.Toplevel) else self.root
+        return main
+
     def _prompt_multi_note(self, paths: list[Path]) -> None:
         """Ask for an optional note; Enter sends to API, Esc cancels."""
-        dlg = tk.Toplevel(self.root)
+        # Parent to the visible Tk root, not the withdrawn answer-card Toplevel.
+        dlg = tk.Toplevel(self._tk_root())
         dlg.overrideredirect(True)
         dlg.attributes("-topmost", True)
         dlg.configure(bg=PALETTE["border"])
@@ -354,6 +369,20 @@ class FloatingApp:
             self._complete_multi_note(paths, None)
             return "break"
 
+        def claim_focus() -> None:
+            if done["closed"]:
+                return
+            try:
+                dlg.lift()
+                dlg.attributes("-topmost", True)
+                dlg.grab_set()
+            except tk.TclError:
+                pass
+            try:
+                entry.focus_force()
+            except tk.TclError:
+                pass
+
         entry.bind("<Return>", submit)
         dlg.bind("<Escape>", cancel)
         entry.bind("<Escape>", cancel)
@@ -361,11 +390,10 @@ class FloatingApp:
         dlg._blankfloat_submit = submit  # noqa: SLF001
         dlg._blankfloat_cancel = cancel  # noqa: SLF001
 
-        try:
-            dlg.grab_set()
-        except tk.TclError:
-            pass
-        entry.focus_force()
+        dlg.update_idletasks()
+        claim_focus()
+        # Second claim after map/compositor settles (hotkey already released).
+        dlg.after(50, claim_focus)
 
     def _complete_multi_note(self, paths: list[Path], note: str | None) -> None:
         """Finish the multi-shot note dialog: None cancels, str sends to API."""

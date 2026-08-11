@@ -28,6 +28,9 @@
   샷은 `capture`/`Ctrl+Shift+Alt+A`로 append. 종료(2회 M) 시 모아둔 샷 일괄 분석.
   API에는 이미지 여러 장을 한 메시지에 보냄 (세로 stitch 없음). 종료 직후 짧은 메모
   입력창이 뜨고, Enter면 메모를 붙여 API 전송·창 닫힘, Esc면 전송 취소.
+  메모 창은 핫키(Ctrl+Shift+Alt+M) 해제 후 ~350ms에 띄움 (캡처와 동일 settle;
+  안 그러면 Wayland에서 Entry 포커스/grab이 실패함). 부모는 withdrawn 답카드가 아니라
+  Tk 루트(타이퍼 창).
 
 ## 설정 / 비밀
 
